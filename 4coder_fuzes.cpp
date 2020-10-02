@@ -377,14 +377,37 @@ fuzes_render_buffer(Application_Links *app, View_ID view_id, Face_ID face_id,
 
 function void
 fuzes_render_caller(Application_Links *app, Frame_Info frame_info, View_ID view_id){
-    ProfileScope(app, "fuzes render caller");
-    View_ID active_view = get_active_view(app, Access_Always);
-    b32 is_active_view = (active_view == view_id);
     
-    Rect_f32 region = draw_background_and_margin(app, view_id, is_active_view);
-    Rect_f32 prev_clip = draw_set_clip(app, region);
+    ProfileScope(app, "fuzes render caller");
+    Scratch_Block scratch(app);
+    
+    //View_ID active_view = get_active_view(app, Access_Always);
+    //b32 is_active_view = (active_view == view_id);
+    
+    //Rect_f32 region = draw_background_and_margin(app, view_id, is_active_view);
+    
+    Rect_f32 view_rect = view_get_screen_rect(app, view_id);
+    Rect_f32 region = rect_inner(view_rect, 1.f);
     
     Buffer_ID buffer = view_get_buffer(app, view_id, Access_Always);
+    String_Const_u8 buffer_name = push_buffer_base_name(app, scratch, buffer);
+    
+    // NOTE(fuzesm): Draw background
+    {
+        ARGB_Color color = fcolor_resolve(fcolor_id(defcolor_back));
+        
+        if(string_match(buffer_name, string_u8_litexpr("*compilation*")))
+        {
+            color = color_blend(color, 0.5f, 0xff000000);
+        }
+        
+        draw_rectangle(app, region, 0.f, color);
+        draw_margin(app, view_rect, region, color);
+    }
+    
+    Rect_f32 prev_clip = draw_set_clip(app, region);
+    
+    //Buffer_ID buffer = view_get_buffer(app, view_id, Access_Always);
     Face_ID face_id = get_face_id(app, buffer);
     Face_Metrics face_metrics = get_face_metrics(app, face_id);
     f32 line_height = face_metrics.line_height;
@@ -440,6 +463,14 @@ fuzes_render_caller(Application_Links *app, Frame_Info frame_info, View_ID view_
     
     // NOTE(allen): draw the buffer
     fuzes_render_buffer(app, view_id, face_id, buffer, text_layout_id, region);
+    
+#if 0    
+    if(is_active_view == 0)
+    {
+        ARGB_Color color = fcolor_resolve(fcolor_id(defcolor_back));
+        draw_rectangle(app, view_rect, 0.f, color);
+    }
+#endif
     
     text_layout_free(app, text_layout_id);
     draw_set_clip(app, prev_clip);
